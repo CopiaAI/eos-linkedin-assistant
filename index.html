@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eos LinkedIn Response Assistant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1F4E79; --blue: #2E75B6; --light-blue: #EBF3FB;
+    --white: #FFFFFF; --off-white: #F7F9FC; --text: #1A1A2E;
+    --muted: #6B7280; --border: #D1DDE8;
+    --green: #166534; --green-bg: #DCFCE7;
+    --amber: #92400E; --amber-bg: #FEF3C7;
+    --red: #991B1B; --red-bg: #FEE2E2;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--off-white); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: var(--navy); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 38px; height: 38px; background: var(--blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; color: white; font-weight: 700; }
+  .header h1 { color: white; font-size: 17px; font-weight: 600; }
+  .header p { color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 2px; }
+  .header-keys { display: flex; gap: 8px; }
+  .key-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.7); padding: 6px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+  .key-badge:hover { background: rgba(255,255,255,0.1); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #F87171; }
+  .dot.on { background: #4ADE80; }
+
+  /* SETUP */
+  .setup-bar { background: var(--amber-bg); border-bottom: 2px solid #D97706; padding: 12px 28px; display: flex; align-items: center; gap: 12px; }
+  .setup-bar.hidden { display: none; }
+  .setup-bar p { font-size: 13px; color: var(--amber); font-weight: 500; white-space: nowrap; }
+  .setup-bar input { flex: 1; padding: 7px 11px; border: 1px solid #D97706; border-radius: 6px; font-size: 13px; font-family: monospace; background: white; }
+  .btn-sm { padding: 7px 16px; background: var(--navy); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .btn-sm:hover { background: var(--blue); }
+
+  /* MAIN */
+  .main { max-width: 860px; margin: 0 auto; padding: 28px 20px; }
+  .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+
+  /* CARD */
+  .card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .card h2 { font-size: 14px; color: var(--navy); margin-bottom: 12px; font-weight: 600; }
+  .card p.sub { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+
+  /* SEARCH */
+  .search-row { display: flex; gap: 10px; }
+  .search-row input { flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 7px; font-size: 14px; font-family: inherit; }
+  .search-row input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(46,117,182,0.1); }
+  .btn-search { padding: 9px 20px; background: var(--blue); color: white; border: none; border-radius: 7px; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; white-space: nowrap; }
+  .btn-search:hover { background: var(--navy); }
+  .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* CONTACT CARD */
+  .contact-found { background: var(--green-bg); border: 1px solid #86EFAC; border-radius: 8px; padding: 12px 16px; margin-top: 12px; display: none; }
+  .contact-found.visible { display: block; }
+  .contact-found .cf-name { font-weight: 700; font-size: 15px; color: var(--green); }
+  .contact-found .cf-meta { font-size: 13px; color: #166534; margin-top: 3px; }
+  .contact-found .cf-link { font-size: 12px; color: var(--blue); text-decoration: none; display: inline-block; margin-top: 6px; }
+  .contact-found .cf-link:hover { text-decoration: underline; }
+
+  .contact-new { background: var(--light-blue); border: 1px solid #93C5FD; border-radius: 8px; padding: 12px 16px; margin-top: 12px; display: none; }
+  .contact-new.visible { display: block; }
+  .contact-new p { font-size: 13px; color: var(--navy); }
+
+  /* FIELDS GRID */
+  .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fields-grid.full { grid-template-columns: 1fr; }
+  .fg { display: flex; flex-direction: column; gap: 4px; }
+  .fg label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .fg input, .fg select, .fg textarea { padding: 8px 11px; border: 1px solid var(--border); border-radius: 7px; font-size: 14px; font-family: inherit; color: var(--text); transition: border-color 0.15s; resize: none; }
+  .fg input:focus, .fg select:focus, .fg textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(46,117,182,0.1); }
+
+  /* SCENARIOS */
+  .scenario-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .sc-btn { padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 8px; background: white; cursor: pointer; text-align: left; transition: all 0.15s; font-family: inherit; }
+  .sc-btn:hover { border-color: var(--blue); background: var(--light-blue); }
+  .sc-btn.active { border-color: var(--blue); background: var(--light-blue); box-shadow: 0 0 0 2px rgba(46,117,182,0.15); }
+  .sc-icon { font-size: 18px; margin-bottom: 4px; }
+  .sc-title { font-size: 12px; font-weight: 700; color: var(--navy); }
+  .sc-desc { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+
+  /* GENERATE */
+  .btn-generate { width: 100%; padding: 14px; background: var(--navy); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-generate:hover:not(:disabled) { background: var(--blue); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(31,78,121,0.25); }
+  .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .loading { display: none; align-items: center; justify-content: center; gap: 10px; padding: 16px; color: var(--muted); font-size: 14px; }
+  .loading.vis { display: flex; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* RESPONSE */
+  .response-card { background: white; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); display: none; }
+  .response-card.vis { display: block; }
+  .resp-header { background: var(--navy); padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; }
+  .resp-header span { color: white; font-size: 13px; font-weight: 600; }
+  .btn-copy { padding: 6px 14px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 600; transition: all 0.15s; }
+  .btn-copy:hover { background: rgba(255,255,255,0.25); }
+  .btn-copy.copied { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+  .resp-body { padding: 18px 22px; }
+  .resp-text { font-size: 15px; line-height: 1.65; color: var(--text); white-space: pre-wrap; border-left: 3px solid var(--blue); padding-left: 14px; margin-bottom: 14px; }
+  .route-flag { background: var(--amber-bg); border: 1px solid #D97706; border-radius: 7px; padding: 10px 14px; display: none; margin-top: 10px; }
+  .route-flag.vis { display: block; }
+  .route-flag p { font-size: 13px; color: var(--amber); font-weight: 500; }
+  .context-note { font-size: 12px; color: var(--muted); background: var(--off-white); border-radius: 6px; padding: 8px 12px; margin-top: 10px; }
+  .save-status { font-size: 12px; margin-top: 8px; padding: 7px 12px; border-radius: 6px; display: none; }
+  .save-status.vis { display: block; }
+  .save-status.ok { background: var(--green-bg); color: var(--green); }
+  .save-status.err { background: var(--red-bg); color: var(--red); }
+  .resp-actions { padding: 12px 22px; border-top: 1px solid var(--border); background: var(--off-white); display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-sec { padding: 7px 16px; background: white; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; color: var(--text); transition: all 0.15s; }
+  .btn-sec:hover { border-color: var(--blue); color: var(--blue); }
+
+  /* HISTORY */
+  .history-card { background: white; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; display: none; }
+  .history-card.vis { display: block; }
+  .history-header { background: var(--off-white); padding: 12px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .history-header span { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .history-body { padding: 16px 20px; max-height: 260px; overflow-y: auto; }
+  .history-entry { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px; }
+  .history-entry:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .he-date { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .he-scenario { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--light-blue); color: var(--blue); font-weight: 600; margin-bottom: 6px; }
+  .he-their { font-size: 12px; color: var(--muted); margin-bottom: 4px; font-style: italic; }
+  .he-response { font-size: 13px; color: var(--text); line-height: 1.5; }
+
+  /* RULES */
+  .rules-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .rules-toggle .chevron { font-size: 11px; color: var(--muted); transition: transform 0.2s; }
+  .rules-toggle .chevron.open { transform: rotate(180deg); }
+  .rules-body { display: none; margin-top: 12px; }
+  .rules-body.open { display: block; }
+  .rule-row { display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .rule-row:last-child { border-bottom: none; }
+  .rt { padding: 8px 10px; background: var(--off-white); font-weight: 600; color: var(--navy); border-right: 1px solid var(--border); }
+  .rd { padding: 8px 10px; color: var(--text); line-height: 1.4; }
+
+  .error-msg { background: var(--red-bg); border: 1px solid #FCA5A5; border-radius: 7px; padding: 10px 14px; font-size: 13px; color: var(--red); display: none; margin-bottom: 14px; }
+  .error-msg.vis { display: block; }
+
+  .footer { text-align: center; padding: 20px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); background: white; }
+
+  @media (max-width: 580px) {
+    .scenario-grid { grid-template-columns: 1fr 1fr; }
+    .fields-grid { grid-template-columns: 1fr; }
+    .header-keys { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">E</div>
+    <div>
+      <h1>LinkedIn Response Assistant</h1>
+      <p>Eos HR & AI Consulting — for Susan</p>
+    </div>
+  </div>
+  <div class="header-keys">
+    <div class="key-badge" onclick="showSetup('anthropic')">
+      <div class="dot" id="dotAI"></div><span>Claude API</span>
+    </div>
+    <div class="key-badge" onclick="showSetup('notion')">
+      <div class="dot" id="dotNotion"></div><span>Notion</span>
+    </div>
+  </div>
+</div>
+
+<div class="setup-bar hidden" id="setupBar">
+  <p id="setupLabel">API Key:</p>
+  <input type="password" id="setupInput" placeholder="" />
+  <button class="btn-sm" onclick="saveKey()">Save</button>
+  <button class="btn-sm" style="background:#666" onclick="hideSetup()">Cancel</button>
+</div>
+
+<div class="main">
+
+  <!-- STEP 1: LOOK UP PROSPECT -->
+  <!-- QUICK PASTE -->
+  <div class="section-label">Quick start &mdash; paste from Sales Navigator</div>
+  <div class="card">
+    <h2>Paste their profile text &nbsp;<span style="font-size:12px;font-weight:400;color:var(--muted);">optional but fastest</span></h2>
+    <p class="sub">On their Sales Navigator profile, select all text on the page (Ctrl+A / Cmd+A), copy it, and paste here. The app extracts name, title, company, and size in one step.</p>
+    <div class="fg full" style="margin-bottom:10px;">
+      <textarea id="quickPasteInput" rows="4" placeholder="Paste the copied Sales Navigator profile text here..." style="font-size:13px;color:#6B7280;"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="btn-search" onclick="parsePaste()" id="parseBtn">Extract Info</button>
+      <span id="parseStatus" style="font-size:13px;color:var(--muted);"></span>
+    </div>
+  </div>
+
+  <div class="section-label">Step 1 — Who are you working on?</div>
+  <div class="card">
+    <h2>Look up or create a contact in Claudia</h2>
+    <p class="sub">Search first. If they're already in Claudia, their info and history will load. If not, you can create them.</p>
+    <div class="search-row">
+      <input type="text" id="searchName" placeholder="Type their first and last name..." onkeydown="if(event.key==='Enter') searchContact()" />
+      <button class="btn-search" onclick="searchContact()" id="searchBtn">Search Claudia</button>
+    </div>
+    <div class="search-inline-error" id="searchInlineError" style="display:none;margin-top:10px;padding:10px 14px;background:#FEE2E2;border:1px solid #FCA5A5;border-radius:7px;font-size:13px;color:#991B1B;"></div>
+    <div class="contact-found" id="contactFound">
+      <div class="cf-name" id="cfName"></div>
+      <div class="cf-meta" id="cfMeta"></div>
+      <a class="cf-link" id="cfLink" href="#" target="_blank">Open in Notion →</a>
+    </div>
+    <div class="contact-new" id="contactNew">
+      <p id="contactNewMsg"></p>
+    </div>
+  </div>
+
+  <!-- STEP 2: PROSPECT DETAILS -->
+  <div class="section-label">Step 2 — Confirm their details</div>
+  <div class="card">
+    <h2>Prospect info</h2>
+    <div class="fields-grid">
+      <div class="fg"><label>First Name</label><input type="text" id="firstName" placeholder="e.g. Mitchell" /></div>
+      <div class="fg"><label>Last Name</label><input type="text" id="lastName" placeholder="e.g. Samuelian" /></div>
+      <div class="fg"><label>Their Title</label><input type="text" id="prospectTitle" placeholder="e.g. Founder & CEO" /></div>
+      <div class="fg"><label>Company Name</label><input type="text" id="companyName" placeholder="e.g. NuConsult Services" /></div>
+      <div class="fg"><label>Company Size</label><input type="text" id="companySize" placeholder="e.g. 17 employees" /></div>
+      <div class="fg"><label>LinkedIn URL (optional)</label><input type="text" id="linkedinUrl" placeholder="https://linkedin.com/in/..." /></div>
+    </div>
+  </div>
+
+  <!-- STEP 3: SCENARIO -->
+  <div class="section-label">Step 3 — Where are you in the conversation?</div>
+  <div class="card">
+    <h2>Pick the closest situation</h2>
+    <p class="sub">Choose one, then paste what they actually said below.</p>
+    <div class="scenario-grid">
+      <button class="sc-btn" onclick="selectScenario('accepted')" id="sc-accepted">
+        <div class="sc-icon">🤝</div><div class="sc-title">Just accepted</div>
+        <div class="sc-desc">They accepted, no message yet</div>
+      </button>
+      <button class="sc-btn" onclick="selectScenario('yes')" id="sc-yes">
+        <div class="sc-icon">✅</div><div class="sc-title">Said YES</div>
+        <div class="sc-desc">Confirmed AI tools without a policy</div>
+      </button>
+      <button class="sc-btn" onclick="selectScenario('maybe')" id="sc-maybe">
+        <div class="sc-icon">🤔</div><div class="sc-title">Curious / maybe</div>
+        <div class="sc-desc">Interested but hedging or asking more</div>
+      </button>
+      <button class="sc-btn" onclick="selectScenario('notnow')" id="sc-notnow">
+        <div class="sc-icon">⏳</div><div class="sc-title">Not right now</div>
+        <div class="sc-desc">Real timing issue, not a flat no</div>
+      </button>
+      <button class="sc-btn" onclick="selectScenario('no')" id="sc-no">
+        <div class="sc-icon">🚫</div><div class="sc-title">Declined</div>
+        <div class="sc-desc">Polite no or brush-off</div>
+      </button>
+      <button class="sc-btn" onclick="selectScenario('other')" id="sc-other">
+        <div class="sc-icon">💬</div><div class="sc-title">Something else</div>
+        <div class="sc-desc">Describe it in their message below</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 4: THEIR MESSAGE -->
+  <div class="section-label">Step 4 — What did they say?</div>
+  <div class="card">
+    <h2>Their message</h2>
+    <p class="sub">Paste exactly what they wrote. The more detail, the better the response.</p>
+    <div class="fg full">
+      <textarea id="theirMessage" rows="4" placeholder="e.g. 'Yes, we have no idea what tools people are using. It's kind of a free-for-all right now.'"></textarea>
+    </div>
+  </div>
+
+  <!-- GENERATE -->
+  <div style="margin-bottom: 24px;">
+    <div class="error-msg" id="errorMsg"></div>
+    <button class="btn-generate" onclick="generate()" id="generateBtn">
+      <span>✦</span><span>Generate Sara's Response</span>
+    </button>
+    <div class="loading" id="loadingAI"><div class="spinner"></div><span>Writing in Sara's voice...</span></div>
+  </div>
+
+  <!-- RESPONSE -->
+  <div class="response-card" id="responseCard">
+    <div class="resp-header">
+      <span>📋 Copy-ready response</span>
+      <button class="btn-copy" id="copyBtn" onclick="copyResponse()">Copy to clipboard</button>
+    </div>
+    <div class="resp-body">
+      <div class="resp-text" id="responseText"></div>
+      <div class="route-flag" id="routeFlag">
+        <p>⚡ <strong>Flag for Sara:</strong> <span id="routeNote"></span> Send the AI Clarity Call link: <strong>go.eoshr.com/ai-clarity-call</strong></p>
+      </div>
+      <div class="save-status" id="saveStatus"></div>
+      <div class="context-note" id="contextNote"></div>
+    </div>
+    <div class="resp-actions">
+      <button class="btn-sec" onclick="generate()">Try different version</button>
+      <button class="btn-sec" onclick="saveToNotion()" id="saveBtn">Save to Claudia</button>
+      <button class="btn-sec" onclick="clearAll()">Start over</button>
+    </div>
+  </div>
+
+  <!-- CONVERSATION HISTORY -->
+  <div class="history-card" id="historyCard">
+    <div class="history-header">
+      <span>📖 Past conversations with this contact</span>
+    </div>
+    <div class="history-body" id="historyBody"></div>
+  </div>
+
+  <!-- RULES REFERENCE -->
+  <div class="card">
+    <div class="rules-toggle" onclick="toggleRules()">
+      <h2 style="margin:0">Quick Reference Rules</h2>
+      <span class="chevron" id="rulesChevron">▼</span>
+    </div>
+    <div class="rules-body" id="rulesBody">
+      <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 4px;">
+        <div class="rule-row"><div class="rt">YES response</div><div class="rd">Lead with founder liability. Drop HR language. Offer the gap tool. Keep it short.</div></div>
+        <div class="rule-row"><div class="rt">Brush-off / no</div><div class="rd">Clean warm close. No re-pitch. Never send the policy tool after a no.</div></div>
+        <div class="rule-row"><div class="rt">Route to Sara</div><div class="rd">When they ask about pricing, scope, or describe a real situation. Link: go.eoshr.com/ai-clarity-call</div></div>
+        <div class="rule-row"><div class="rt">No team yet</div><div class="rd">Warm hold. Wish them luck. Circle back when hiring starts. No pitch.</div></div>
+        <div class="rule-row"><div class="rt">They pitch you</div><div class="rd">Gracious exit. Different lane. Plant partnership seed if complementary.</div></div>
+        <div class="rule-row"><div class="rt">Looking for job</div><div class="rd">Warm, brief. Referral seed if they have their own clients.</div></div>
+        <div class="rule-row"><div class="rt">NOT NOW tool</div><div class="rd">go.eoshr.com/ai-policy — only for genuine timing objections. Never as recovery.</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">Eos HR & AI Consulting &nbsp;|&nbsp; sara@eoshr.com &nbsp;|&nbsp; (510) 269-6161</div>
+
+<script>
+// ── CONSTANTS ────────────────────────────────────────────────────────────────
+const CONTACTS_DS = '3f8dd0e4-5cd7-42c1-b60f-50a4db536e4d';
+const NOTION_API  = 'https://api.notion.com/v1';
+const CLAUDE_API  = 'https://api.anthropic.com/v1/messages';
+const NOTION_VER  = '2022-06-28';
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let claudeKey   = localStorage.getItem('eos_claude_key') || '';
+let notionKey   = localStorage.getItem('eos_notion_key') || '';
+let currentSetup = '';
+let selectedScenario = '';
+let foundContactId   = null;   // Notion page ID of found contact
+let foundContactUrl  = null;
+let lastResponse     = '';
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  updateDots();
+});
+
+function updateDots() {
+  document.getElementById('dotAI').className     = 'dot' + (claudeKey ? ' on' : '');
+  document.getElementById('dotNotion').className = 'dot' + (notionKey ? ' on' : '');
+}
+
+// ── KEY SETUP ────────────────────────────────────────────────────────────────
+function showSetup(which) {
+  currentSetup = which;
+  const bar   = document.getElementById('setupBar');
+  const label = document.getElementById('setupLabel');
+  const input = document.getElementById('setupInput');
+  bar.classList.remove('hidden');
+  if (which === 'anthropic') {
+    label.textContent = 'Anthropic API Key (sk-ant-...):';
+    input.placeholder = 'sk-ant-...';
+  } else {
+    label.textContent = 'Notion Integration Token (secret_...):';
+    input.placeholder = 'secret_...';
+  }
+  input.value = '';
+  input.focus();
+}
+
+function hideSetup() {
+  document.getElementById('setupBar').classList.add('hidden');
+}
+
+function saveKey() {
+  const val = document.getElementById('setupInput').value.trim();
+  if (!val) return;
+  if (currentSetup === 'anthropic') {
+    claudeKey = val;
+    localStorage.setItem('eos_claude_key', val);
+  } else {
+    notionKey = val;
+    localStorage.setItem('eos_notion_key', val);
+  }
+  hideSetup();
+  updateDots();
+}
+
+// ── NOTION API HELPERS ───────────────────────────────────────────────────────
+// Direct calls work from GitHub Pages (no CORS restriction on hosted URLs).
+async function notionGet(path) {
+  const r = await fetch(NOTION_API + path, {
+    headers: { 'Authorization': 'Bearer ' + notionKey, 'Notion-Version': NOTION_VER }
+  });
+  if (!r.ok) throw new Error('Notion error ' + r.status);
+  return r.json();
+}
+
+async function notionPost(path, body) {
+  const r = await fetch(NOTION_API + path, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + notionKey, 'Notion-Version': NOTION_VER, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('Notion error ' + r.status);
+  return r.json();
+}
+
+async function notionPatch(path, body) {
+  const r = await fetch(NOTION_API + path, {
+    method: 'PATCH',
+    headers: { 'Authorization': 'Bearer ' + notionKey, 'Notion-Version': NOTION_VER, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('Notion error ' + r.status);
+  return r.json();
+}
+
+// ── SEARCH CLAUDIA ───────────────────────────────────────────────────────────
+async function searchContact() {
+  if (!notionKey) { showSetup('notion'); return; }
+  const name = document.getElementById('searchName').value.trim();
+  if (!name) return;
+
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true; btn.textContent = 'Searching...';
+
+  // Reset state
+  foundContactId = null; foundContactUrl = null;
+  document.getElementById('contactFound').classList.remove('visible');
+  document.getElementById('contactNew').classList.remove('visible');
+  document.getElementById('historyCard').classList.remove('vis');
+  document.getElementById('searchInlineError').style.display = 'none';
+
+  try {
+    const res = await notionPost('/databases/' + CONTACTS_DS + '/query', {
+      filter: { property: 'Name', title: { contains: name } },
+      page_size: 5
+    });
+
+    if (res.results && res.results.length > 0) {
+      const page = res.results[0];
+      const props = page.properties;
+      foundContactId  = page.id;
+      foundContactUrl = page.url;
+
+      // Extract fields
+      const fullName  = props.Name?.title?.map(t => t.plain_text).join('') || name;
+      const company   = props.Company?.rich_text?.map(t => t.plain_text).join('') || '';
+      const title     = props['Their Ideal Client Profile']?.rich_text?.map(t=>t.plain_text).join('') || '';
+      const category  = props['Contact Category']?.select?.name || '';
+      const liUrl     = props['LinkedIn URL']?.url || '';
+      const notes     = props.Notes?.rich_text?.map(t=>t.plain_text).join('') || '';
+
+      // Show found card
+      document.getElementById('cfName').textContent = fullName + (category ? '  •  ' + category : '');
+      document.getElementById('cfMeta').textContent = [company].filter(Boolean).join(' | ');
+      document.getElementById('cfLink').href = foundContactUrl;
+      document.getElementById('contactFound').classList.add('visible');
+
+      // Pre-fill fields
+      const parts = fullName.trim().split(' ');
+      document.getElementById('firstName').value   = parts[0] || '';
+      document.getElementById('lastName').value    = parts.slice(1).join(' ') || '';
+      document.getElementById('companyName').value = company;
+      if (liUrl) document.getElementById('linkedinUrl').value = liUrl;
+
+      // Load conversation history from page content
+      loadHistory(page.id, fullName);
+
+    } else {
+      // Not found
+      const msg = `"${name}" was not found in Claudia. Fill in their details and a new contact will be created when you save.`;
+      document.getElementById('contactNewMsg').textContent = msg;
+      document.getElementById('contactNew').classList.add('visible');
+
+      // Pre-fill name
+      const parts = name.trim().split(' ');
+      document.getElementById('firstName').value = parts[0] || '';
+      document.getElementById('lastName').value  = parts.slice(1).join(' ') || '';
+    }
+  } catch(e) {
+    const se = document.getElementById('searchInlineError');
+    se.textContent = 'Search failed: ' + e.message + '. Check that both API keys are saved and your Notion integration has access to the Claudia database.';
+    se.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Search Claudia';
+  }
+}
+
+// ── LOAD HISTORY ─────────────────────────────────────────────────────────────
+async function loadHistory(pageId, name) {
+  try {
+    const res = await notionGet('/blocks/' + pageId + '/children?page_size=100');
+    if (!res.results) return;
+
+    // Find LinkedIn Outreach Log section
+    const entries = [];
+    let inLog = false;
+    for (const block of res.results) {
+      if (block.type === 'heading_2') {
+        const text = block.heading_2?.rich_text?.map(t=>t.plain_text).join('') || '';
+        inLog = text.includes('LinkedIn Outreach Log');
+        continue;
+      }
+      if (inLog && block.type === 'paragraph') {
+        const text = block.paragraph?.rich_text?.map(t=>t.plain_text).join('') || '';
+        if (text.trim()) entries.push(text);
+      }
+      if (inLog && block.type === 'divider') inLog = false;
+    }
+
+    if (entries.length === 0) return;
+
+    // Parse and display
+    const container = document.getElementById('historyBody');
+    container.innerHTML = '';
+
+    // Group by entry (entries starting with a date pattern)
+    const grouped = [];
+    let current = null;
+    for (const line of entries) {
+      if (line.match(/^\d{4}-\d{2}-\d{2}/)) {
+        if (current) grouped.push(current);
+        current = { header: line, lines: [] };
+      } else if (current) {
+        current.lines.push(line);
+      }
+    }
+    if (current) grouped.push(current);
+
+    if (grouped.length === 0) return;
+
+    grouped.slice().reverse().forEach(entry => {
+      const div = document.createElement('div');
+      div.className = 'history-entry';
+      const parts = entry.header.split(' | ');
+      const date  = parts[0] || '';
+      const scenario = parts[1] || '';
+      div.innerHTML = `
+        <div class="he-date">${date}</div>
+        ${scenario ? `<span class="he-scenario">${scenario}</span>` : ''}
+        ${entry.lines.map(l => {
+          if (l.startsWith('Their message:')) return `<div class="he-their">${l.replace('Their message:','').trim()}</div>`;
+          if (l.startsWith('Response sent:')) return `<div class="he-response">${l.replace('Response sent:','').trim()}</div>`;
+          return `<div class="he-response">${l}</div>`;
+        }).join('')}
+      `;
+      container.appendChild(div);
+    });
+
+    document.getElementById('historyCard').classList.add('vis');
+  } catch(e) {
+    // History load failing silently is fine
+    console.warn('History load:', e);
+  }
+}
+
+// ── SCENARIO ─────────────────────────────────────────────────────────────────
+const SCENARIO_CONTEXT = {
+  accepted: "They just accepted the connection request. No messages exchanged yet. Send the opener DM: a short yes/no question about whether their team uses AI tools without a policy in place.",
+  yes: "They responded YES to the opener question 'Are your people already using AI tools at work without a policy in place?' This is confirmed pain. Follow up by naming the founder liability angle and offering a lightweight next step. Do NOT lead with HR.",
+  maybe: "They seem curious or interested but are hedging or asking questions. Haven't said yes or no clearly. Keep the conversation going without pitching hard.",
+  notnow: "The timing is genuinely wrong — they're busy or not ready yet. This is a real timing objection. The AI policy tool (go.eoshr.com/ai-policy) may be appropriate.",
+  no: "Polite decline or brush-off. Do NOT re-pitch or offer the policy tool. Write a clean warm close and move on.",
+  other: "Custom situation — read their message carefully and respond appropriately."
+};
+
+const SCENARIO_LABELS = {
+  accepted: 'Just accepted', yes: 'Said YES', maybe: 'Curious/maybe',
+  notnow: 'Not right now', no: 'Declined', other: 'Other'
+};
+
+function selectScenario(id) {
+  selectedScenario = id;
+  document.querySelectorAll('.sc-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sc-' + id).classList.add('active');
+}
+
+// ── SYSTEM PROMPT ─────────────────────────────────────────────────────────────
+const SYSTEM = `You are writing LinkedIn DMs on behalf of Sara Skowronski, Principal Consultant and CEO of Eos HR & AI Consulting in Oakland, CA.
+
+SARA'S VOICE — follow exactly:
+- Conversational, direct, plain language. Short sentences. Active voice.
+- Warm but never gushing. Confident but not pushy.
+- No em dashes. No corporate jargon. No buzzwords. No hustle language.
+- Never start with "I" — start with their name, a reaction, or the point.
+- No exclamation points unless genuinely called for.
+- Reads like a real person, not a template or a sales sequence.
+- 2-4 sentences maximum for most responses. Long responses feel like pitches.
+
+SARA'S BUSINESS:
+- Helps founder-led companies (10-200 employees) with HR compliance and AI governance
+- 25 years HR and employment law experience, 20+ states, certified AI consultant
+- Differentiator: makes AI in HR legally defensible. She knows both the tools AND the law.
+- Does NOT: process payroll, serve as legal counsel, do staffing
+- AI Clarity Call: go.eoshr.com/ai-clarity-call
+- AI policy tool (timing-objection only): go.eoshr.com/ai-policy
+
+MESSAGING RULES:
+1. Never lead with "HR." Lead with AI governance, legal exposure, or founder liability.
+2. If YES to AI tools question: keep it about founder exposure, not HR infrastructure. Use "small founder-led" language.
+3. AI policy tool ONLY for genuine timing objections. Never as recovery after a soft no.
+4. Pre-revenue / no team yet: warm hold, wish luck, circle back when hiring starts. No pitch.
+5. They pitched back: gracious exit, name the different lane, plant partnership seed if complementary.
+6. Looking for a job: warm, brief, referral seed if they have their own clients/practice.
+7. If it should route to Sara: write a brief holding response AND add ROUTE_TO_SARA: [reason] on its own line at the very end.
+8. Brush-off/decline: clean warm close only.
+
+OUTPUT: Write ONLY the DM text to copy and send. No intro, no commentary. Just the message.
+If routing needed: add ROUTE_TO_SARA: [brief reason] on its own line at the very end. Nothing else after that.`;
+
+// ── GENERATE ─────────────────────────────────────────────────────────────────
+async function generate() {
+  clearError();
+  if (!claudeKey) { showSetup('anthropic'); return; }
+
+  const firstName = document.getElementById('firstName').value.trim();
+  const lastName  = document.getElementById('lastName').value.trim();
+  const title     = document.getElementById('prospectTitle').value.trim();
+  const company   = document.getElementById('companyName').value.trim();
+  const size      = document.getElementById('companySize').value.trim();
+  const theirMsg  = document.getElementById('theirMessage').value.trim();
+
+  if (!theirMsg && selectedScenario !== 'accepted') {
+    showError('Paste what they said so the response can be personalised.');
+    return;
+  }
+
+  let userMsg = '';
+  if (firstName) userMsg += `Prospect: ${firstName} ${lastName}`.trim() + '\n';
+  if (title)     userMsg += `Title: ${title}\n`;
+  if (company)   userMsg += `Company: ${company}\n`;
+  if (size)      userMsg += `Size: ${size}\n`;
+  if (selectedScenario) userMsg += `\nSituation: ${SCENARIO_CONTEXT[selectedScenario]}\n`;
+  if (theirMsg)  userMsg += `\nTheir message: "${theirMsg}"\n`;
+  userMsg += '\nWrite the DM response.';
+
+  setLoading(true);
+  document.getElementById('responseCard').classList.remove('vis');
+
+  try {
+    const res = await fetch(CLAUDE_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': claudeKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, system: SYSTEM, messages: [{ role: 'user', content: userMsg }] })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || 'API error ' + res.status);
+    }
+
+    const data = await res.json();
+    const full = data.content[0].text.trim();
+
+    let displayText = full;
+    let routeReason = '';
+    const rm = full.match(/\nROUTE_TO_SARA:\s*(.+)$/);
+    if (rm) { routeReason = rm[1].trim(); displayText = full.replace(/\nROUTE_TO_SARA:.+$/, '').trim(); }
+
+    lastResponse = displayText;
+    document.getElementById('responseText').textContent = displayText;
+
+    const rf = document.getElementById('routeFlag');
+    if (routeReason) { document.getElementById('routeNote').textContent = routeReason + '.'; rf.classList.add('vis'); }
+    else rf.classList.remove('vis');
+
+    document.getElementById('contextNote').textContent =
+      firstName ? `Written for ${firstName}${company ? ' at ' + company : ''}. Review before sending.`
+                : 'Review before sending. Add the prospect\'s name if missing.';
+
+    document.getElementById('saveStatus').classList.remove('vis');
+    document.getElementById('responseCard').classList.add('vis');
+    document.getElementById('responseCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  } catch(e) {
+    showError('Generation failed: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── SAVE TO NOTION ────────────────────────────────────────────────────────────
+async function saveToNotion() {
+  if (!notionKey) { showSetup('notion'); return; }
+  if (!lastResponse) return;
+
+  const firstName = document.getElementById('firstName').value.trim();
+  const lastName  = document.getElementById('lastName').value.trim();
+  const title     = document.getElementById('prospectTitle').value.trim();
+  const company   = document.getElementById('companyName').value.trim();
+  const size      = document.getElementById('companySize').value.trim();
+  const liUrl     = document.getElementById('linkedinUrl').value.trim();
+  const theirMsg  = document.getElementById('theirMessage').value.trim();
+  const fullName  = (firstName + ' ' + lastName).trim();
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+
+  const today = new Date().toISOString().slice(0, 10);
+  const scenarioLabel = SCENARIO_LABELS[selectedScenario] || 'Outreach';
+
+  // Log entry text blocks
+  const logBlocks = [
+    { object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: `${today} | ${scenarioLabel}` } }] } },
+    { object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: theirMsg ? `Their message: ${theirMsg}` : '(No message — connection accepted)' } }] } },
+    { object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: `Response sent: ${lastResponse}` } }] } },
+    { object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: '' } }] } },
+  ];
+
+  try {
+    if (foundContactId) {
+      // Contact exists — append to their page
+      // First check if LinkedIn Outreach Log heading exists
+      const blocks = await notionGet('/blocks/' + foundContactId + '/children?page_size=100');
+      let hasLogSection = false;
+      if (blocks.results) {
+        for (const b of blocks.results) {
+          if (b.type === 'heading_2') {
+            const t = b.heading_2?.rich_text?.map(x=>x.plain_text).join('') || '';
+            if (t.includes('LinkedIn Outreach Log')) { hasLogSection = true; break; }
+          }
+        }
+      }
+
+      const blocksToAppend = [];
+      if (!hasLogSection) {
+        blocksToAppend.push({ object: 'block', type: 'heading_2', heading_2: { rich_text: [{ type: 'text', text: { content: 'LinkedIn Outreach Log' } }] } });
+      }
+      blocksToAppend.push(...logBlocks);
+
+      await notionPatch('/blocks/' + foundContactId + '/children', { children: blocksToAppend });
+
+      // Update Claudia Last Updated
+      await notionPatch('/pages/' + foundContactId, {
+        properties: { 'date:Claudia Last Updated:start': today, 'date:Claudia Last Updated:is_datetime': 0 }
+      });
+
+      showSaveStatus('Saved to ' + fullName + '\'s record in Claudia.', true);
+
+    } else {
+      // Create new contact
+      const props = {
+        'Name': fullName,
+        'Company': company,
+        'Contact Category': 'Prospect',
+        'Relationship Strength': 'New',
+        'date:Claudia Last Updated:start': today,
+        'date:Claudia Last Updated:is_datetime': 0,
+        'Notes': `LinkedIn outreach — ${company || 'unknown company'}${size ? ', ' + size : ''}${title ? ', ' + title : ''}`
+      };
+      if (liUrl) props['LinkedIn URL'] = liUrl;
+
+      const pageContent = [
+        { object: 'block', type: 'heading_2', heading_2: { rich_text: [{ type: 'text', text: { content: 'LinkedIn Outreach Log' } }] } },
+        ...logBlocks
+      ];
+
+      const newPage = await notionPost('/pages', {
+        parent: { database_id: CONTACTS_DS },
+        properties: props,
+        children: pageContent
+      });
+
+      if (newPage.id) {
+        foundContactId  = newPage.id;
+        foundContactUrl = newPage.url;
+
+        // Update UI to show the contact was created
+        document.getElementById('cfName').textContent = fullName + '  •  Prospect';
+        document.getElementById('cfMeta').textContent = company;
+        document.getElementById('cfLink').href = foundContactUrl;
+        document.getElementById('contactFound').classList.add('visible');
+        document.getElementById('contactNew').classList.remove('visible');
+
+        showSaveStatus('New contact created and conversation saved to Claudia.', true);
+      } else {
+        throw new Error(newPage.message || 'Page creation failed');
+      }
+    }
+
+    // Reload history
+    if (foundContactId) loadHistory(foundContactId, fullName);
+
+  } catch(e) {
+    showSaveStatus('Save failed: ' + e.message, false);
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'Save to Claudia';
+  }
+}
+
+function showSaveStatus(msg, ok) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = ok ? '✓ ' + msg : '✗ ' + msg;
+  el.className = 'save-status vis ' + (ok ? 'ok' : 'err');
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function copyResponse() {
+  navigator.clipboard.writeText(lastResponse).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy to clipboard'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function clearAll() {
+  ['firstName','lastName','prospectTitle','companyName','companySize','linkedinUrl','theirMessage','searchName'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.querySelectorAll('.sc-btn').forEach(b => b.classList.remove('active'));
+  selectedScenario = ''; foundContactId = null; foundContactUrl = null; lastResponse = '';
+  ['contactFound','contactNew'].forEach(id => document.getElementById(id).classList.remove('visible'));
+  ['responseCard','historyCard'].forEach(id => document.getElementById(id).classList.remove('vis'));
+  clearError();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setLoading(on) {
+  document.getElementById('generateBtn').disabled = on;
+  document.getElementById('loadingAI').className = 'loading' + (on ? ' vis' : '');
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg; el.classList.add('vis');
+}
+function clearError() { document.getElementById('errorMsg').classList.remove('vis'); }
+
+
+// ── QUICK PASTE PARSER ────────────────────────────────────────────────────────
+async function parsePaste() {
+  if (!claudeKey) { showSetup('anthropic'); return; }
+  const raw = document.getElementById('quickPasteInput').value.trim();
+  if (!raw) return;
+
+  const btn = document.getElementById('parseBtn');
+  const status = document.getElementById('parseStatus');
+  btn.disabled = true; btn.textContent = 'Extracting...'; status.textContent = '';
+
+  try {
+    const res = await fetch(CLAUDE_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': claudeKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 200,
+        system: 'You extract contact details from pasted LinkedIn or Sales Navigator profile text. Return ONLY valid JSON with these keys: firstName, lastName, title, company, companySize, linkedinUrl. Use empty string "" for any field not found. companySize should be a number followed by "employees" if found (e.g. "17 employees"). linkedinUrl should be the full LinkedIn profile URL if found. No explanation, no markdown, just the JSON object.',
+        messages: [{ role: 'user', content: 'Extract contact details from this text:\n\n' + raw.slice(0, 3000) }]
+      })
+    });
+
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    let text = data.content[0].text.trim();
+    // Strip markdown code fences if present
+    text = text.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    const parsed = JSON.parse(text);
+
+    let filled = 0;
+    if (parsed.firstName)    { document.getElementById('firstName').value    = parsed.firstName;    filled++; }
+    if (parsed.lastName)     { document.getElementById('lastName').value     = parsed.lastName;     filled++; }
+    if (parsed.title)        { document.getElementById('prospectTitle').value = parsed.title;       filled++; }
+    if (parsed.company)      { document.getElementById('companyName').value  = parsed.company;      filled++; }
+    if (parsed.companySize)  { document.getElementById('companySize').value  = parsed.companySize;  filled++; }
+    if (parsed.linkedinUrl)  { document.getElementById('linkedinUrl').value  = parsed.linkedinUrl;  filled++; }
+
+    // Auto-populate search field and trigger search if we got a name
+    if (parsed.firstName || parsed.lastName) {
+      const fullName = (parsed.firstName + ' ' + parsed.lastName).trim();
+      document.getElementById('searchName').value = fullName;
+    }
+
+    status.textContent = filled > 0 ? '\u2713 Extracted ' + filled + ' fields. Review below, then search Claudia.' : 'Could not extract details. Try filling in manually.';
+    status.style.color = filled > 0 ? 'var(--green)' : 'var(--red)';
+
+    // Clear the paste box
+    document.getElementById('quickPasteInput').value = '';
+
+  } catch(e) {
+    status.textContent = 'Extract failed: ' + e.message;
+    status.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Extract Info';
+  }
+}
+
+function toggleRules() {
+  document.getElementById('rulesBody').classList.toggle('open');
+  document.getElementById('rulesChevron').classList.toggle('open');
+}
+</script>
+</body>
+</html>
