@@ -164,9 +164,7 @@
     <div class="key-badge" onclick="showSetup('anthropic')">
       <div class="dot" id="dotAI"></div><span>Claude API</span>
     </div>
-    <div class="key-badge" onclick="showSetup('notion')">
-      <div class="dot" id="dotNotion"></div><span>Notion</span>
-    </div>
+
   </div>
 </div>
 
@@ -341,7 +339,7 @@ const PROXY_URL   = 'https://eos-notion-proxy.sara-d0b.workers.dev';
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let claudeKey   = localStorage.getItem('eos_claude_key') || '';
-let notionKey   = localStorage.getItem('eos_notion_key') || '';
+let notionKey   = ''; // Token stored in Cloudflare worker environment
 let currentSetup = '';
 let selectedScenario = '';
 let foundContactId   = null;   // Notion page ID of found contact
@@ -355,7 +353,7 @@ window.addEventListener('load', () => {
 
 function updateDots() {
   document.getElementById('dotAI').className     = 'dot' + (claudeKey ? ' on' : '');
-  document.getElementById('dotNotion').className = 'dot' + (notionKey ? ' on' : '');
+  // Notion token stored in worker — no badge needed
 }
 
 // ── KEY SETUP ────────────────────────────────────────────────────────────────
@@ -365,13 +363,8 @@ function showSetup(which) {
   const label = document.getElementById('setupLabel');
   const input = document.getElementById('setupInput');
   bar.classList.remove('hidden');
-  if (which === 'anthropic') {
-    label.textContent = 'Anthropic API Key (sk-ant-...):';
-    input.placeholder = 'sk-ant-...';
-  } else {
-    label.textContent = 'Notion Integration Token (secret_...):';
-    input.placeholder = 'secret_...';
-  }
+  label.textContent = 'Anthropic API Key (sk-ant-...):';
+  input.placeholder = 'sk-ant-...';
   input.value = '';
   input.focus();
 }
@@ -386,9 +379,6 @@ function saveKey() {
   if (currentSetup === 'anthropic') {
     claudeKey = val;
     localStorage.setItem('eos_claude_key', val);
-  } else {
-    notionKey = val;
-    localStorage.setItem('eos_notion_key', val);
   }
   hideSetup();
   updateDots();
@@ -403,7 +393,7 @@ async function notionFetch(method, path, body) {
     method,
     headers: {
       'Content-Type':    'application/json',
-      'X-Notion-Token':  notionKey
+      'X-Request-Source': 'eos-linkedin-app' // worker uses its own token
     }
   };
   if (body && !['GET','HEAD'].includes(method)) opts.body = JSON.stringify(body);
@@ -421,7 +411,7 @@ async function notionPatch(path, body) { return notionFetch('PATCH', path, body)
 
 // ── SEARCH CLAUDIA ───────────────────────────────────────────────────────────
 async function searchContact() {
-  if (!notionKey) { showSetup('notion'); return; }
+  if (!claudeKey) { showSetup('anthropic'); return; } // Notion token in worker
   const name = document.getElementById('searchName').value.trim();
   if (!name) return;
 
@@ -691,7 +681,7 @@ async function generate() {
 
 // ── SAVE TO NOTION ────────────────────────────────────────────────────────────
 async function saveToNotion() {
-  if (!notionKey) { showSetup('notion'); return; }
+  if (!claudeKey) { showSetup('anthropic'); return; } // Notion token in worker
   if (!lastResponse) return;
 
   const firstName = document.getElementById('firstName').value.trim();
