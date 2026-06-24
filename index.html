@@ -337,6 +337,7 @@ const CONTACTS_DS = '3f8dd0e4-5cd7-42c1-b60f-50a4db536e4d';
 const NOTION_API  = 'https://api.notion.com/v1';
 const CLAUDE_API  = 'https://api.anthropic.com/v1/messages';
 const NOTION_VER  = '2022-06-28';
+const PROXY_URL   = 'https://eos-notion-proxy.sara-d0b.workers.dev';
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let claudeKey   = localStorage.getItem('eos_claude_key') || '';
@@ -393,35 +394,30 @@ function saveKey() {
   updateDots();
 }
 
-// ── NOTION API HELPERS ───────────────────────────────────────────────────────
-// Direct calls work from GitHub Pages (no CORS restriction on hosted URLs).
-async function notionGet(path) {
-  const r = await fetch(NOTION_API + path, {
-    headers: { 'Authorization': 'Bearer ' + notionKey, 'Notion-Version': NOTION_VER }
-  });
-  if (!r.ok) throw new Error('Notion error ' + r.status);
+// ── NOTION API HELPERS (via Cloudflare Worker proxy) ─────────────────────────
+// Calls route through the Cloudflare Worker to bypass CORS.
+// The worker forwards them to Notion server-side and returns the response.
+async function notionFetch(method, path, body) {
+  const url = PROXY_URL + '/notion' + path;
+  const opts = {
+    method,
+    headers: {
+      'Content-Type':    'application/json',
+      'X-Notion-Token':  notionKey
+    }
+  };
+  if (body && !['GET','HEAD'].includes(method)) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error('Notion error ' + r.status + ': ' + err);
+  }
   return r.json();
 }
 
-async function notionPost(path, body) {
-  const r = await fetch(NOTION_API + path, {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + notionKey, 'Notion-Version': NOTION_VER, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) throw new Error('Notion error ' + r.status);
-  return r.json();
-}
-
-async function notionPatch(path, body) {
-  const r = await fetch(NOTION_API + path, {
-    method: 'PATCH',
-    headers: { 'Authorization': 'Bearer ' + notionKey, 'Notion-Version': NOTION_VER, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) throw new Error('Notion error ' + r.status);
-  return r.json();
-}
+async function notionGet(path)         { return notionFetch('GET',   path, null); }
+async function notionPost(path, body)  { return notionFetch('POST',  path, body); }
+async function notionPatch(path, body) { return notionFetch('PATCH', path, body); }
 
 // ── SEARCH CLAUDIA ───────────────────────────────────────────────────────────
 async function searchContact() {
