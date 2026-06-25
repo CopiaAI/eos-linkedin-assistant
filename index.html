@@ -732,7 +732,7 @@ async function saveToNotion() {
 
       // Update Claudia Last Updated
       await notionPatch('/pages/' + foundContactId, {
-        properties: { 'date:Claudia Last Updated:start': today, 'date:Claudia Last Updated:is_datetime': 0 }
+        properties: { 'Claudia Last Updated': { date: { start: today } } }
       });
 
       showSaveStatus('Saved to ' + fullName + '\'s record in Claudia.', true);
@@ -740,13 +740,12 @@ async function saveToNotion() {
     } else {
       // Create new contact
       const props = {
-        'Name': fullName,
-        'Company': company,
-        'Contact Category': 'Prospect',
-        'Relationship Strength': 'New',
-        'date:Claudia Last Updated:start': today,
-        'date:Claudia Last Updated:is_datetime': 0,
-        'Notes': `LinkedIn outreach — ${company || 'unknown company'}${size ? ', ' + size : ''}${title ? ', ' + title : ''}`
+        'Name':                  { title: [{ type: 'text', text: { content: fullName } }] },
+        'Company':               { rich_text: [{ type: 'text', text: { content: company || '' } }] },
+        'Contact Category':      { select: { name: 'Prospect' } },
+        'Relationship Strength': { select: { name: 'New' } },
+        'Claudia Last Updated':  { date: { start: today } },
+        'Notes':                 { rich_text: [{ type: 'text', text: { content: `LinkedIn outreach — ${company || 'unknown company'}${size ? ', ' + size : ''}${title ? ', ' + title : ''}` } }] }
       };
       if (liUrl) props['LinkedIn URL'] = liUrl;
 
